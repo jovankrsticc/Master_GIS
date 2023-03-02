@@ -1,0 +1,2 @@
+CREATE TABLE Korisnici (UserID VARCHAR (50), pointID SERIAL PRIMARY KEY, t timestamp,brzina float, orjentacija float, geom geometry(Point, 3812));
+## Kreiranje tabele u bazi za mobilne podatke
