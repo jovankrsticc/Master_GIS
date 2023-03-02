@@ -15,18 +15,50 @@ function initialize(){
         zoom: 13
     });
 
+    var wmsLayer = L.tileLayer.wms('http://localhost:8080/geoserver/Mobtest/wms?', {
+        layers: 'Mobtest:planet_osm_line'
+    }).addTo(map);
+    
+    layerControl.addBaseLayer(wmsLayer, "Putevi").addTo(map);
+
     var osnovniSloj = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png?{foo}', {foo: 'bar', attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
 
     layerControl.addBaseLayer(osnovniSloj, "OsnovniSloj").addTo(map);
     
+    
+    fileSelector()
 
     getData();
-
-    map.eachLayer(function(layer){
-		
-		console.log(layer);
-	});
     
+}
+
+function fileSelector()
+{
+    $.ajax("getSvaVozila.php", {
+		success: function(data){
+            var dataArray =data.split(", ;");
+            dataArray.forEach(function(item){
+                $('#select1').append(`<option value="${item}">
+                                       ${item}
+                                  </option>`);
+            });
+			//console.log(data.split(", ;"));
+		}
+	})
+}
+function ZumirajVozilo(ve)
+{
+    $.ajax("getPointEndVozilo.php", {
+        data: {
+            vozilo: ve,
+        },
+		success: function(data){
+			//console.log($.parseJSON(data.split(", ")[1]).coordinates);
+            var cord = $.parseJSON(data.split(", ")[1]).coordinates;
+            var latlon=[cord[1],cord[0]];
+            map.setView(latlon, 15);
+		}
+	})
 }
 
 function getData(){
@@ -36,13 +68,13 @@ function getData(){
             trajvozilo: "veh3",
 		},
 		success: function(data){
-			console.log(data);
-            mapData(data);
+			//console.log(data);
+            mapData(data,"veh3");
 		}
 	})
 };
 
-function mapData(data){
+function mapData(data,vozilo){
 	
 	map.eachLayer(function(layer){
 		
@@ -88,8 +120,8 @@ function mapData(data){
 	var mapDataLayer = L.geoJson(geojson, {
 		pointToLayer: function (feature, latlng) {
 			var markerStyle = { 
-				fillColor: "#CC9900",
-				color: "#FFF",
+				fillColor: "#FFFFFF",
+				color: "#FFFFFF",
 				fillOpacity: 0.5,
 				opacity: 0.8,
 				weight: 1,
@@ -107,15 +139,34 @@ function mapData(data){
 	        layer.bindPopup(html);
 	    }
 	}).addTo(map);
-    layerControl.addOverlay(mapDataLayer, "Trajektorija").addTo(map);
+
+    mapDataLayer.setStyle({
+        fillColor: "#FF0000",
+		color: "#FF0000",
+    });
+    layerControl.addOverlay(mapDataLayer, "Trajektorija "+vozilo).addTo(map);
 };
 
 
+function PocetakiKrajKretanja(Vozilo)
+{
+    
+    $.ajax("getPocetakiKrajKretanaj.php", {
+		data: {
+            vozilo: Vozilo,
+		},
+		success: function(data){
+			console.log(data.split(", ;")[0]);
+            $("#PocetakKret").val(data.split(", ;")[1]);
+            $("#KrajKret").val(data.split(", ;")[0]);
+		}
+	})
+}
+
 function iscrtajtrajektorijuvozila()
 {
-    var formdata = $("form").serializeArray();
-
-    var Vozilo= formdata[0].value;
+    var Vozilo= $('#select1').val();
+    console.log(Vozilo);
     
     $.ajax("getData.php", {
 		data: {
@@ -124,8 +175,57 @@ function iscrtajtrajektorijuvozila()
 		},
 		success: function(data){
 			console.log(data);
-            mapData(data);
+            mapData(data,Vozilo);
 		}
 	})
+    PocetakiKrajKretanja(Vozilo);
+    ZumirajVozilo(Vozilo);
+}
 
+
+function iscrtajtrajektorijuvozilauvremenu()
+{
+    var Vozilo= $('#select1').val();
+    var Pocetakk= $("#PocetakKret").val().replace("T"," ");
+    if(Pocetakk.length<18){Pocetakk+":00"}
+    var Krajk=$("#KrajKret").val().replace("T"," ");
+    if(Krajk.length<18){Krajk+":00"}
+
+    
+    $.ajax("getVozilouvremenu.php", {
+		data: {
+			table: "korisnici",
+            trajvozilo: Vozilo,
+            pocetak:Pocetakk,
+            kraj:Krajk
+		},
+		success: function(data){
+			console.log(data);
+            mapData(data,Vozilo);
+		}
+	})
+    ZumirajVozilo(Vozilo);
+}
+
+function prosecnabrzina()
+{
+    var Pocetakk= $("#PocetakKret1").val().replace("T"," ");
+    if(Pocetakk.length<18){Pocetakk+":00"}
+    var Krajk=$("#KrajKret1").val().replace("T"," ");
+    if(Krajk.length<18){Krajk+":00"}
+    var brzpros=$("#prosbrzina").val();
+
+    $.ajax("getProsecnabrzinaveca.php", {
+		data: {
+			table: "korisnici",
+            pocetak:Pocetakk,
+            kraj:Krajk,
+            brzina:brzpros
+		},
+		success: function(data){
+			console.log(data);
+            mapData(data,"Prosek_"+brzpros);
+		}
+	})
+   
 }
